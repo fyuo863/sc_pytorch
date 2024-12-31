@@ -298,10 +298,7 @@ def activity_get(size):
 def generate_high_dim_matrices(n):
     """
     生成高维矩阵的列表。
-    二维矩阵列表为num_individuals行,num_individuals列
     高维矩阵列表的行列为其本身
-    二维同时计算
-    高维单独计算
     参数：
     n (int): 矩阵的维度。
 
@@ -311,16 +308,16 @@ def generate_high_dim_matrices(n):
     matrices = []
     
     for dim in range(2, n + 1):
-        if dim == 2:
-            # 生成一个dim维的矩阵，这里使用的是一个固定大小，比如3
-            shape = (num_individuals,) * dim  # 假设矩阵的每一维都是3，形状可以根据需求调整
-            matrix = np.zeros(shape)  # 生成随机数填充矩阵
-            matrices.append(matrix)
-        else:
-            # 生成一个dim维的矩阵，这里使用的是一个固定大小，比如3
-            shape = (n,) * dim  # 假设矩阵的每一维都是3，形状可以根据需求调整
-            matrix = np.zeros(shape)  # 生成随机数填充矩阵
-            matrices.append(matrix)
+        # if dim == 2:
+        #     # 生成一个dim维的矩阵，这里使用的是一个固定大小，比如3
+        #     shape = (num_individuals,) * dim  # 假设矩阵的每一维都是3，形状可以根据需求调整
+        #     matrix = np.zeros(shape)  # 生成随机数填充矩阵
+        #     matrices.append(matrix)
+        # else:
+        # 生成一个dim维的矩阵，这里使用的是一个固定大小，比如3
+        shape = (n,) * dim  # 假设矩阵的每一维都是3，形状可以根据需求调整
+        matrix = np.zeros(shape)  # 生成随机数填充矩阵
+        matrices.append(matrix)
     
     return matrices
 
@@ -359,10 +356,10 @@ if __name__ == '__main__':
         #3.给矩阵赋值
         # 定义2至最高维度的数组
         print(f"包含节点最多的单纯形：{max(simplex.simplexs, key=len)}，长度为{len(max(simplex.simplexs, key=len))}")
-        matrices = generate_high_dim_matrices(len(max(simplex.simplexs, key=len)))
+        #matrices = generate_high_dim_matrices(len(max(simplex.simplexs, key=len)))
 
         # 数组赋值
-        for item in simplex.simplexs:
+        for item in simplex.simplexs:# 遍历每个单纯形
             print("----------")
             print(item)
             print(len(item))
@@ -371,18 +368,22 @@ if __name__ == '__main__':
             for r in range(2, len(item) + 1):
                 combinations.extend(itertools.combinations(item, r))
             # 打印所有组合
+            matrices = generate_high_dim_matrices(len(max(combinations, key=len)))
             for combo in combinations:
                 print(combo)
                 # 找到对应的矩阵
-                print(matrices[len(combo) - 2])
-                if len(combo) == 2:# 二维数组填进A，以后统一计算
-                    index = [range(num_individuals).index(x) for x in combo]
-                else:# 高维数组直接计算
-                    index = [list(item).index(x) for x in combo]
+                #print(matrices[len(combo) - 2])
+                # if len(combo) == 2:# 二维数组填进A，以后统一计算
+                #     index = [range(num_individuals).index(x) for x in combo]
+                # else:# 高维数组直接计算
+                index = [list(item).index(x) for x in combo]
                 matrices[len(set(combo)) - 2][index] = 1
+                print(matrices[len(combo) - 2])
+                print(combinations)
+                print(len(max(combinations, key=len)))
                 print(item)
                 print(index)
-                time.sleep(1)
+                time.sleep(3)
 
 
         #4.意见交换(龙格库塔四阶)
