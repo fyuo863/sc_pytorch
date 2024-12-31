@@ -26,9 +26,11 @@ H = xgi.Hypergraph()
 num_individuals = 1000  # 个体数
 time_duration = 10
 time_step = 0.01
+alpha = 2.0
 beta = 2.0
 gamma = 2.1
 m = int(10)# 每个1000代理最多影响10个其他代理
+K = 2
 
 class Simplex_computer:# 单纯形相关
     def __init__(self):
@@ -321,6 +323,51 @@ def generate_high_dim_matrices(n):
     
     return matrices
 
+def rk4(f, y0, t0, t_end, h):
+    """
+    使用向量化实现 RK4 数值解法
+    :param f: 微分方程 dy/dt = f(t, y)
+    :param y0: 初始状态 (torch.Tensor)
+    :param t0: 起始时间 (float)
+    :param t_end: 结束时间 (float)
+    :param h: 时间步长 (float)
+    :return: 时间序列和解的序列
+    """
+    # 创建时间序列
+    t_values = torch.arange(t0, t_end + h, h)
+    n_steps = len(t_values)
+    
+    # 初始化结果存储
+    y_values = torch.zeros((n_steps, *y0.shape))
+    y_values[0] = torch.tensor(y0, dtype=torch.float32)
+    
+    # 批量计算时间步对应的状态
+    for i in range(1, n_steps):
+        t = t_values[i - 1]
+        y = y_values[i - 1]
+        
+        k1 = h * f(t, y)
+        k2 = h * f(t + 0.5 * h, y + 0.5 * k1)
+        k3 = h * f(t + 0.5 * h, y + 0.5 * k2)
+        k4 = h * f(t + h, y + k3)
+        
+        y_values[i] = y + (k1 + 2 * k2 + 2 * k3 + k4) / 6
+    
+    return t_values, y_values
+
+# 这里涉及到邻接矩阵 A 和张量索引 temp
+def f(t, y):
+    # 假设邻接矩阵 A 和一个常数 K
+    global matrices, K, alpha
+    matrices_tensor = [torch.tensor(matrix, dtype=torch.float32) for matrix in matrices]
+    # 计算与邻接矩阵相关的项
+    temp = torch.arange(y.shape[0], dtype=torch.long)  # 使用索引
+    print(temp)
+    interaction = K * torch.sum(matrices_tensor[0][:, temp] * torch.tanh(alpha * t), dim=1)  # 批量处理
+    #print(interaction)
+    # 微分方程
+    return -y + interaction
+
 if __name__ == '__main__':
     # 实例化
     simplex = Simplex_computer()
@@ -366,8 +413,8 @@ if __name__ == '__main__':
             # 计算所有组合
             combinations = []
             for r in range(2, len(item) + 1):
-                combinations.extend(itertools.combinations(item, r))
-            # 打印所有组合
+                combinations.extend(itertools.permutations(item, r))
+            
             matrices = generate_high_dim_matrices(len(max(combinations, key=len)))
             for combo in combinations:
                 print(combo)
@@ -377,16 +424,28 @@ if __name__ == '__main__':
                 #     index = [range(num_individuals).index(x) for x in combo]
                 # else:# 高维数组直接计算
                 index = [list(item).index(x) for x in combo]
-                matrices[len(set(combo)) - 2][index] = 1
+                matrices[len(set(combo)) - 2][tuple(index)] = 1
                 print(matrices[len(combo) - 2])
                 print(combinations)
                 print(len(max(combinations, key=len)))
                 print(item)
                 print(index)
-                time.sleep(3)
+                #time.sleep(3)
+            #4.意见交换(龙格库塔四阶)
+            # 初始条件
+            new_arr = np.take(opinions[:, tick - 1], list(item))
+            y0 = torch.tensor(new_arr)  # 初始值 y(0) = 随机值
+            t0 = 0.0  # 起始时间
+            t_end = 1.0  # 结束时间
+            h = 0.1  # 时间步长
+            # 使用向量化 RK4 方法
+            t_values, y_values = rk4(f, y0, t0, t_end, h)
+            print(y_values[-1])
+            opinions[(list(item)), tick] = y_values[-1]
 
 
-        #4.意见交换(龙格库塔四阶)
+
+        
 
         #print("所有单纯形",simplex.simplexs)
 
@@ -405,3 +464,17 @@ if __name__ == '__main__':
 
     # draw.Draw_subplots()# 全绘制
 
+    # 使用 matplotlib 绘制所有折线
+    plt.figure(figsize=(8, 6))
+
+    # 使用 .T 转置将每行转为每列，然后一次性传递给 plt.plot()
+    plt.plot(range(len(opinions[0, :])), opinions.T)  # opinions.T 会将每列作为一条折线
+
+    # 添加标签、标题和图例
+    plt.xlabel('X')
+    plt.ylabel('Y')
+    plt.title('Multiple Lines Plot')
+    plt.legend([f'Line {i+1}' for i in range(opinions.shape[0])])  # 自动生成图例
+
+    # 显示图像
+    plt.show()
